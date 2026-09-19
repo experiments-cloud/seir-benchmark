@@ -1,7 +1,7 @@
 """
 real_data_fit_ekf.py
 
-Real-world validation of the SEIR parameter-recovery pipeline -- Extended
+Real-world validation of the SEIR parameter-recovery pipeline, Extended
 Kalman Filter (EKF) baseline. Fits (beta, sigma, gamma) to real first-wave
 COVID-19 cumulative case data for Italy and South Korea.
 
@@ -10,24 +10,20 @@ model, initial-condition handling, population sizes, and the important
 caveat about constant-beta SEIR being misspecified for countries with an
 abrupt lockdown, such as Italy).
 
-DIFFERENCE FROM THE NLS SCRIPT: rho IS NOT JOINTLY ESTIMATED HERE
------------------------------------------------------------------------
 Unlike real_data_fit_nls.py, which estimates the reporting fraction rho
 jointly with (beta, sigma, gamma), this EKF implementation keeps rho
-FIXED, at the value already estimated by the NLS fit for the same
+fixed, at the value already estimated by the NLS fit for the same
 country (real_data_fit_nls.py must be run first). Extending the EKF's
 augmented state to include rho as a fifth estimated quantity would
 require re-deriving the filter's Jacobian for an 8-dimensional state; this
-was judged not to be worth the added complexity for a single confirmatory
+was judged not worth the added complexity for a single confirmatory
 real-data experiment, given that the main comparative claims of this study
-already rest on the synthetic-data benchmarks (which do not have this
-limitation). This is a real asymmetry between the two methods on this
-specific experiment and should be stated plainly in the manuscript, not
-left implicit.
-
+already rest on the synthetic-data benchmarks, which do not have this
+limitation. This is a real asymmetry between the two methods on this
+specific experiment and is stated plainly here and in the manuscript,
+rather than left implicit.
 
 Outputs are written to ./results/.
-
 """
 
 import os

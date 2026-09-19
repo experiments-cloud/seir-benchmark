@@ -11,42 +11,38 @@ Engineering (JHU CSSE) COVID-19 Data Repository
 (https://github.com/CSSEGISandData/COVID-19), cumulative confirmed cases,
 country level.
 
-IMPORTANT: this repository was archived (set to read-only) by JHU CSSE on
-March 10, 2023, and is no longer updated. It should be cited as an
-archived historical source, not as a live data feed. The historical data
-used here (January 2020 through mid-2020, covering the first pandemic
-wave) remain unaffected by the archival and are the correct, complete
-historical record for that period.
+This repository was archived (set to read-only) by JHU CSSE on March 10,
+2023, and is no longer updated. It should be cited as an archived
+historical source, not as a live data feed. The historical data used here
+(January 2020 through mid-2020, covering the first pandemic wave) remain
+unaffected by the archival and are the correct, complete historical
+record for that period.
 
-Both Italy and South Korea are drawn from the SAME JHU-aggregated source
+Both Italy and South Korea are drawn from the same JHU-aggregated source
 for consistency of format and processing, even though the original
 project plan considered a separate, South-Korea-specific dataset
 (DS4C/KCDC). South Korea is retained as the secondary series specifically
 because its early, extensive testing capacity produced comparatively
 complete case ascertainment relative to many other countries during the
-first wave -- providing a natural contrast to Italy's more constrained
+first wave, providing a natural contrast to Italy's more constrained
 testing capacity in February-March 2020, without requiring a
 differently-formatted secondary data source.
 
-MODELING ASSUMPTION (please read before fitting)
------------------------------------------------------
-This script prepares CUMULATIVE CONFIRMED CASE COUNTS. When fitting the
+This script prepares cumulative confirmed case counts. When fitting the
 SEIR model to this series (see real_data_fit_nls.py), cumulative
 confirmed cases are treated as a noisy, underreported proxy for the
 cumulative number of individuals who have ever left the Exposed
-compartment, i.e., observed(t) ~ rho * (I(t) + R(t)), where rho is an
-unknown reporting/ascertainment fraction estimated jointly with the
-epidemiological parameters. This is a simplifying assumption (real
-reporting involves delays, changing testing policy over time, and
-asymptomatic cases that may never be tested) -- it is the standard
-simplification used throughout this benchmark's real-data validation, and
-its limitations should be discussed explicitly in the manuscript.
-
+compartment, observed(t) ~ rho * (I(t) + R(t)), where rho is an unknown
+reporting fraction estimated jointly with the epidemiological parameters.
+This is a simplifying assumption, since real reporting involves delays,
+changing testing policy over time, and asymptomatic cases that may never
+be tested; it is the standard simplification used throughout this
+benchmark's real-data validation, and its limitations are discussed
+explicitly in the manuscript.
 
 Requires internet access to raw.githubusercontent.com. Writes
 real_data_italy.csv and real_data_korea.csv to the current directory,
 each with columns: date, day, cumulative_confirmed.
-
 """
 
 import pandas as pd

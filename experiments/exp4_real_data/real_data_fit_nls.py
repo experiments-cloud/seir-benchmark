@@ -2,41 +2,39 @@
 real_data_fit_nls.py
 
 Real-world validation of the SEIR parameter-recovery pipeline: fits
-(beta, sigma, gamma, rho) -- transmission rate, incubation rate, recovery
-rate, and reporting/ascertainment fraction -- to real first-wave COVID-19
-cumulative case data for Italy and South Korea, via nonlinear
-least-squares (the method that performed most robustly throughout the
-synthetic-data benchmark in this study).
+(beta, sigma, gamma, rho), transmission rate, incubation rate, recovery
+rate, and reporting fraction, to real first-wave COVID-19 cumulative case
+data for Italy and South Korea, via nonlinear least squares (the method
+that performed most consistently throughout the synthetic-data benchmark
+in this study).
 
-MODELING ASSUMPTIONS (read before interpreting results)
-------------------------------------------------------------
+Modeling assumptions, worth reading before interpreting results:
+
 1. Observed cumulative confirmed cases are modeled as
-   observed(t) = rho * (I(t) + R(t)), i.e., a noisy, underreported proxy
+   observed(t) = rho * (I(t) + R(t)), a noisy, underreported proxy
    for the cumulative number of individuals who have ever left the
    Exposed compartment. rho is fit jointly with the epidemiological
    parameters, not fixed.
 2. The model's initial condition is anchored to the first observed data
    point of each country's window: E(0) = I(0) = (first observed count),
-   R(0) = 0, S(0) = population - E(0) - I(0). This is a simplification
-   (the true early E/I split is unknown) but keeps day 0 of the model
-   aligned with day 0 of the real data without introducing an additional
-   free time-shift parameter.
+   R(0) = 0, S(0) = population - E(0) - I(0). This is a simplification,
+   since the true early E/I split is unknown, but keeps day 0 of the
+   model aligned with day 0 of the real data without introducing an
+   additional free time-shift parameter.
 3. Population sizes are fixed at approximate 2020 figures: Italy ~60.3
    million, South Korea ~51.8 million. A single well-mixed, homogeneous
-   population is assumed (no age structure, no spatial structure, no
-   changes in contact patterns over time such as lockdowns -- beta is
-   treated as constant over the whole window, which is a known
+   population is assumed, with no age structure, no spatial structure,
+   and no changes in contact patterns over time such as lockdowns, so
+   beta is treated as constant over the whole window, a known
    simplification particularly for Italy, whose national lockdown
    substantially reduced transmission partway through this window; this
-   should be discussed explicitly as a limitation in the manuscript, and
-   is one plausible explanation if the fit to Italy is visibly worse than
-   to South Korea).
-
+   is discussed explicitly as a limitation in the manuscript, and is one
+   plausible explanation if the fit to Italy is visibly worse than to
+   South Korea.
 
 Outputs are written to ./results/ (created automatically): fitted
 parameters, fit-quality plots (data vs. model) for both countries, and a
 summary table.
-
 """
 
 import os

@@ -1,7 +1,7 @@
 """
 sparsity_benchmark_einn.py
 
-Data-sparsity benchmark for SEIR parameter recovery -- physics-informed
+Data-sparsity benchmark for SEIR parameter recovery, physics-informed
 neural network (epidemiology-informed neural network, EINN) estimator.
 
 This script mirrors the experimental design of the companion classical
@@ -10,8 +10,6 @@ comparable: the same synthetic ground-truth outbreak, the same five
 data-sparsity levels, and the same number of random-initialization repeats
 per level.
 
-IMPLEMENTATION NOTE (important for anyone adapting this script)
-------------------------------------------------------------------
 The training loop is implemented directly in PyTorch, without a
 higher-level PINN framework. This is a deliberate choice, not a stylistic
 one: an earlier version of this experiment built on a popular PINN library
@@ -21,12 +19,12 @@ throughout training, while the other two parameters trained normally. The
 root cause, found through direct inspection of per-parameter gradients,
 was an incorrect non-dimensionalization: when each compartment (S, E, I,
 R) is rescaled by its own typical magnitude for numerical conditioning,
-the ODE residual equations must be rescaled by the CORRESPONDING RATIO OF
-COMPARTMENT SCALES, not simply divided by each compartment's own scale.
+the ODE residual equations must be rescaled by the corresponding ratio of
+compartment scales, not simply divided by each compartment's own scale.
 Omitting this ratio silently produces a residual that is dimensionally
 inconsistent, which in this particular parameter regime happened to leave
 beta's gradient near the floating-point noise floor while leaving the
-other two parameters' gradients small but non-zero -- an easy failure mode
+other two parameters' gradients small but non-zero, an easy failure mode
 to miss without directly inspecting per-parameter gradients rather than
 only the aggregate loss. See the residual definitions below for the
 corrected, dimensionally-consistent form. This is documented here in
@@ -37,30 +35,28 @@ one specific parameter appearing to converge to a stable, plausible-looking
 (but data-independent) value.
 
 1. Generates the same synthetic ground-truth SEIR outbreak used by the
-   classical baseline (no observation noise; noise robustness is addressed
+   classical baseline (no observation noise; noise sensitivity is addressed
    in a separate companion experiment).
 2. For each data-sparsity level (15%, 30%, 45%, 60%, 100% of the full
    epidemic cycle), trains a small feed-forward neural network that maps
-   time -> (S, E, I, R), constrained by:
-      (a) a data-fitting loss against the observed infectious curve I(t)
-          over the available (sparse) time window, and
-      (b) a physics loss that penalizes violation of the (correctly
-          non-dimensionalized) SEIR ODE system, evaluated via automatic
-          differentiation, over the FULL time window -- this is what
-          allows the network to extrapolate beyond the observed data
-          using the epidemiological constraints alone.
+   time to (S, E, I, R), constrained by a data-fitting loss against the
+   observed infectious curve I(t) over the available (sparse) time window,
+   and a physics loss that penalizes violation of the (correctly
+   non-dimensionalized) SEIR ODE system, evaluated via automatic
+   differentiation, over the full time window; the physics loss is what
+   allows the network to extrapolate beyond the observed data using the
+   epidemiological constraints alone.
    The initial condition is enforced exactly via a hard constraint in the
    network's output layer (rather than as a soft loss term), and the
    transmission rate (beta), incubation rate (sigma), and recovery rate
    (gamma) are treated as trainable scalars, jointly optimized with the
    network weights (inverse-problem formulation).
 3. Repeats each fit from multiple random initializations (seeds) to assess
-   training robustness, exactly as done for the classical baseline.
+   sensitivity to initialization, exactly as done for the classical baseline.
 4. Reports, for each sparsity level: the median and interquartile range of
    the relative parameter-recovery error.
 5. Saves raw per-run results, a summary table, and a summary plot in the
    same format as the classical baseline, to support direct comparison.
-
 
 Outputs are written to ./results/ (created automatically). A GPU is not
 required but will speed up training if available and detected

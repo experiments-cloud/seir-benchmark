@@ -1,48 +1,40 @@
 """
 real_data_fit_mcmc.py
 
-Real-world validation of the SEIR parameter-recovery pipeline -- Bayesian
+Real-world validation of the SEIR parameter-recovery pipeline, Bayesian
 MCMC baseline (PyMC, NUTS sampler). Fits (beta, sigma, gamma) to real
 first-wave COVID-19 cumulative case data for Italy and South Korea, with
 the reporting fraction rho fixed at the NLS-estimated value (see
 real_data_fit_ekf.py for the same design choice and its rationale).
 
-WHY THIS EXPERIMENT, GIVEN MCMC'S COST ELSEWHERE IN THIS STUDY
--------------------------------------------------------------------
 The full synthetic sparsity/noise MCMC benchmark (matching the NLS/EKF/
-EINN designs of 15 seeds across 5-7 conditions) was judged computationally
-infeasible in this environment (~9 days of continuous computation; see
-nonidentifiability_validation_mcmc.py's docstring). A single real-data
-validation, by contrast, is only two fits (one per country) and completed
-in well under an hour in development testing -- a fundamentally different
-cost profile that makes it worth running despite the earlier decision to
-skip the full synthetic MCMC grid.
-
-There is also a direct scientific motivation, not just a "why not":
-nonidentifiability_validation_mcmc.py found that MCMC's informative priors
-dramatically rescue parameter recovery in the synthetic non-identifiable
-regime (rho very small). Underreporting in real case-count data is a
-practical instance of exactly that same identifiability problem. Testing
-whether MCMC's advantage carries over to real, messy, underreported data
-is the most direct and relevant test of that finding's practical value --
-skipping it would leave the study's most promising result unconnected to
-real-world data.
+EINN design of 15 seeds across several conditions) was judged
+computationally infeasible in this environment, on the order of 9 days of
+continuous computation; see nonidentifiability_validation_mcmc.py. A
+single real-data validation, two fits total, one per country, has a very
+different cost profile and is worth running on its own: the synthetic
+identifiability-validation experiment found that MCMC's informative
+priors substantially rescue parameter recovery when the reporting
+fraction is very small, and underreporting in real case-count data is a
+practical instance of the same identifiability problem, so testing
+whether that advantage carries over to real, underreported data connects
+the study's most promising synthetic result to real-world data directly.
 
 As in nonidentifiability_validation_mcmc.py, progress is saved after each
 completed country fit, so an interruption only costs the fit in progress.
 
-
-Outputs are written to ./results/.
-
-Roughly 15-25 minutes per country in development testing (2 chains,
-300 tuning + 300 draws) -- under an hour total for both countries.
-
+Run download_real_data.py and real_data_fit_nls.py first (the latter
+provides rho), then this script. Each country fit takes roughly 15 to 25
+minutes (2 chains, 300 tuning plus 300 draws); results are written to
+./results/. Requires numpy, pandas, matplotlib, pymc, arviz, and
+seir_model.py.
 """
 
 import os
 import time
 from datetime import datetime
 
+import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -141,7 +133,12 @@ def fit_mcmc(t_obs, observed, y0, population, rho, seed):
         var: float(pm.stats.rhat(idata, var_names=[var])[var].values)
         for var in ["beta", "sigma_p", "gamma"]
     }
-    return posterior_means, r_hat_values
+    ess_bulk_values = {
+        var: float(az.ess(idata, var_names=[var], method="bulk")[var].values)
+        for var in ["beta", "sigma_p", "gamma"]
+    }
+    n_divergences = int(idata.sample_stats["diverging"].sum())
+    return posterior_means, r_hat_values, ess_bulk_values, n_divergences
 
 
 def load_checkpoint():
@@ -149,7 +146,8 @@ def load_checkpoint():
         return pd.read_csv(CHECKPOINT_PATH)
     return pd.DataFrame(columns=[
         "country", "beta", "sigma", "gamma", "rho", "rhat_beta",
-        "rhat_sigma", "rhat_gamma", "fit_duration_seconds", "completed_at",
+        "rhat_sigma", "rhat_gamma", "ess_bulk_beta", "ess_bulk_sigma",
+        "ess_bulk_gamma", "n_divergences", "fit_duration_seconds", "completed_at",
     ])
 
 
@@ -206,7 +204,7 @@ def main():
         t_obs, observed, y0, population, rho = load_country_data_and_rho(country_key)
 
         try:
-            fitted_params, r_hat_values = fit_mcmc(
+            fitted_params, r_hat_values, ess_bulk_values, n_divergences = fit_mcmc(
                 t_obs, observed, y0, population, rho, seed=RANDOM_SEED
             )
             fit_duration = time.time() - fit_start
@@ -220,6 +218,10 @@ def main():
                 "rhat_beta": r_hat_values["beta"],
                 "rhat_sigma": r_hat_values["sigma_p"],
                 "rhat_gamma": r_hat_values["gamma"],
+                "ess_bulk_beta": ess_bulk_values["beta"],
+                "ess_bulk_sigma": ess_bulk_values["sigma_p"],
+                "ess_bulk_gamma": ess_bulk_values["gamma"],
+                "n_divergences": n_divergences,
                 "fit_duration_seconds": fit_duration,
                 "completed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }

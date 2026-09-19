@@ -3,59 +3,46 @@ nonidentifiability_validation_mcmc.py
 
 Validation of the practical-identifiability diagnostic (companion script:
 seir_identifiability_analysis.py) against actual parameter-recovery
-behavior -- Bayesian MCMC baseline (PyMC, NUTS sampler).
+behavior, Bayesian MCMC baseline (PyMC, NUTS sampler).
 
-SCOPE (important, read before running)
-----------------------------------------
-Unlike the NLS, EKF, and EINN companion scripts, this script does NOT
+Unlike the NLS, EKF, and EINN companion scripts, this script does not
 replicate the full data-sparsity and observation-noise benchmark designs
 (5 sparsity levels x 15 seeds, 7 noise levels x 15 seeds). Without a
 compiled ODE integrator (the `sunode` package, which would let PyMC
 integrate the SEIR system efficiently, requires Conda and was not
 available in the development environment), PyMC's built-in ODE solver
 (`pm.ode.DifferentialEquation`) integrates via SciPy on every gradient
-evaluation, which is dramatically slower than the classical or
-neural-network-based methods -- roughly 1-2 seconds PER MCMC DRAW in
-development testing. Replicating the full benchmark design at that speed
-would take on the order of days to weeks of continuous computation.
+evaluation, roughly 1 to 2 seconds per MCMC draw in development testing,
+dramatically slower than the classical or neural-network-based methods.
+Replicating the full benchmark design at that speed would take on the
+order of days to weeks of continuous computation. Given that constraint,
+MCMC is applied here only to the identifiability validation experiment
+(the same two scenarios as nonidentifiability_validation_nls.py and
+_einn.py: an identifiable control, rho=0.30, and a non-identifiable test
+case, rho=1e-5), with a reduced number of seeds (5, not 15). This is the
+single most informative place to spend MCMC's computational budget, since
+MCMC is the only one of the four methods that incorporates explicit prior
+information, so this experiment directly tests whether an informative
+prior can partially rescue parameter recovery in the regime where the
+other methods fail.
 
-Given that constraint, MCMC is applied here ONLY to the identifiability
-validation experiment (the same two scenarios as
-nonidentifiability_validation_nls.py / _einn.py: an identifiable control,
-rho=0.30, and a non-identifiable test case, rho=1e-5), with a REDUCED
-number of seeds (5, not 15). This is the single most scientifically
-informative place to spend MCMC's computational budget: MCMC is the only
-one of the four methods that incorporates explicit prior information, so
-this experiment directly tests whether an informative prior can partially
-rescue parameter recovery in the regime where the other methods
-(documented in the companion NLS/EINN scripts) fail.
+Because each individual fit can take tens of minutes, progress is saved
+to disk after every completed (scenario, seed) fit. If interrupted and
+re-run, the script reads its own checkpoint file, skips any (scenario,
+seed) combination already completed, and continues with the rest.
 
-Because each individual fit can take tens of minutes, this script saves
-its progress to disk after EVERY completed (scenario, seed) fit, not just
-at the end. If the script is interrupted (power loss, crash, manual stop)
-and re-run, it reads its own checkpoint file, skips any (scenario, seed)
-combination already completed, and continues with the remaining ones --
-so an interruption only costs the one fit that was in progress at the
-time, not the fits already completed. Progress (X of Y fits done, current
-scenario/seed, wall-clock timestamps) is printed to the console as it
-runs.
-
-
-Outputs are written to ./results/ (created automatically). Re-running the
-script after an interruption is done the same way -- it resumes
-automatically.
-
-Roughly 15-25 minutes per fit in development testing (2 chains, moderate
-tuning) -- budget several hours for the full 10 fits (2 scenarios x 5
-seeds). This is far slower than any of the companion scripts; consider
-running it separately/overnight rather than as part of the main pipeline.
-
+Each fit takes roughly 15 to 25 minutes (2 chains, moderate tuning);
+budget several hours for the full 10 fits (2 scenarios x 5 seeds), and
+consider running this separately or overnight rather than as part of the
+main pipeline. Outputs are written to ./results/. Requires numpy, pandas,
+matplotlib, pymc, arviz, and seir_model.py.
 """
 
 import os
 import time
 from datetime import datetime
 
+import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -188,7 +175,12 @@ def fit_mcmc(time_grid, observed, rho, seed):
         var: float(pm.stats.rhat(idata, var_names=[var])[var].values)
         for var in ["beta", "sigma_p", "gamma"]
     }
-    return posterior_means, r_hat_values
+    ess_bulk_values = {
+        var: float(az.ess(idata, var_names=[var], method="bulk")[var].values)
+        for var in ["beta", "sigma_p", "gamma"]
+    }
+    n_divergences = int(idata.sample_stats["diverging"].sum())
+    return posterior_means, r_hat_values, ess_bulk_values, n_divergences
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +194,8 @@ def load_checkpoint():
         "scenario", "rho", "seed", "beta_fitted", "sigma_fitted",
         "gamma_fitted", "beta_rel_error", "sigma_rel_error",
         "gamma_rel_error", "mean_rel_error", "rhat_beta", "rhat_sigma",
-        "rhat_gamma", "fit_duration_seconds", "completed_at",
+        "rhat_gamma", "ess_bulk_beta", "ess_bulk_sigma", "ess_bulk_gamma",
+        "n_divergences", "fit_duration_seconds", "completed_at",
     ])
 
 
@@ -251,7 +244,7 @@ def main():
         observed_noisy = add_noise(true_observed, NOISE_LEVEL, rng)
 
         try:
-            fitted_params, r_hat_values = fit_mcmc(
+            fitted_params, r_hat_values, ess_bulk_values, n_divergences = fit_mcmc(
                 time_grid, observed_noisy, rho, seed=RANDOM_SEED_BASE + seed_idx
             )
             relative_error = np.abs(fitted_params - PARAMS_TRUE) / PARAMS_TRUE
@@ -271,6 +264,10 @@ def main():
                 "rhat_beta": r_hat_values["beta"],
                 "rhat_sigma": r_hat_values["sigma_p"],
                 "rhat_gamma": r_hat_values["gamma"],
+                "ess_bulk_beta": ess_bulk_values["beta"],
+                "ess_bulk_sigma": ess_bulk_values["sigma_p"],
+                "ess_bulk_gamma": ess_bulk_values["gamma"],
+                "n_divergences": n_divergences,
                 "fit_duration_seconds": fit_duration,
                 "completed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }

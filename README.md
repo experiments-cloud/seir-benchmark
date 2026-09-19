@@ -1,8 +1,6 @@
-# A Systematic Benchmark of Classical, Filtering, and Physics-Informed Estimators for SEIR Parameter Inference Under Data Sparsity, Noise, and Structural Non-Identifiability
+# When Do Physics-Informed Neural Networks Outperform Classical Estimators?
 
 A Systematic Benchmark for SEIR Parameter Inference Under Sparsity, Noise, and Structural Non-Identifiability
-
-Code, data, and manuscript source for the manuscript submitted to *Mathematical Biosciences*. This repository provides everything needed to reproduce every number, table, and figure reported in the paper.
 
 ## Overview
 
@@ -40,7 +38,7 @@ inputs and outputs from scratch.
 ## Repository structure
 
 ```
-seir-benchmark/
+/
 ├── src/                              Canonical copies of the shared modules
 │   ├── seir_model.py                 SEIR ODE solver, outbreak-duration finder
 │   ├── ekf_seir.py                   Extended Kalman Filter implementation
